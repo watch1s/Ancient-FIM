@@ -1,6 +1,9 @@
+from datetime import datetime
 import hashlib
 import json
 import os
+
+
 
 def get_file_hash(file_path):
     #calculates hash
@@ -23,6 +26,48 @@ def save_hashes_to_json(target_dir, output_file="baseline.json"):
         json.dump(hashes, f, indent=4)
     print(f"Total {len(hashes)} file's hash saved to '{output_file}'")
 
+
+def check_for_changes(target_dir, baseline_file = "baseline.json"):
+    with open(baseline_file, "r", encoding="utf-8") as f:
+        old_hashes = json.load(f)
+
+    current_hashes = {}
+    for root, _, files in os.walk(target_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            if full_path == os.path.abspath(baseline_file):
+                continue
+            h = get_file_hash(full_path)
+            #checks the variable is not blank.
+            if h:
+                current_hashes[full_path] = h
+            else:
+                print(f"unidentified file: {full_path}")
+
+    old_paths = set(old_hashes.keys())
+    current_paths = set(current_hashes.keys())
+
+    changes_detected = False
+    now = datetime.now().strftime("%H:%M:%S")
+
+    for path in current_paths - old_paths:
+        print(f"[{now}] [New File] --> {path}")
+        changes_detected = True
+
+    for path in old_paths - current_paths:
+        print(f"[{now}] [Removed File] --> {path}")
+        changes_detected = True
+
+    for path in old_paths & current_paths:
+     if old_hashes[path] != current_hashes[path]:
+       print(f"[{now}] [Changed File]    -> {path}")
+       changes_detected = True
+
+    if changes_detected:
+      with open(baseline_file, "w", encoding="utf-8") as f:
+          json.dump(current_hashes, f, indent=4)
+
+
 while True:
     path = input("please enter the path you want to monitor: ")
 
@@ -43,7 +88,8 @@ while True:
                 
                 #Listing every file's sha256 codes
                 #print(f"{file} --> {file_hash}")
-        save_hashes_to_json(path)
+        #save_hashes_to_json(path)
+        check_for_changes(path)
 
 
 
